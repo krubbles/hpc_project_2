@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 project(hw2 LANGUAGES C CXX)
 
-set(CMAKE_BUILD_TYPE "Release")
-
 # Homebrew installs OpenBLAS as a keg-only package, which keeps cblas.h and
 # the library outside CMake's default search paths. Prefer it on macOS when
 # available, without changing discovery on Perlmutter or other Linux hosts.
@@ -74,27 +72,40 @@ add_library(benchmark OBJECT benchmark.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
 target_link_libraries(benchmark PRIVATE cblas)
 
-add_executable(benchmark-basic dgemm-basic.cpp)
-target_link_libraries(benchmark-basic PRIVATE benchmark cblas)
-target_compile_features(benchmark-basic PRIVATE c_std_11 c_restrict)
-target_compile_options(benchmark-basic PRIVATE -Wall -pedantic -march=native)
-set(BENCHMARK "basic")
-configure_file(job.in job-${BENCHMARK})
-
-add_executable(benchmark-blas dgemm-blas.cpp)
-target_link_libraries(benchmark-blas PRIVATE benchmark cblas)
-target_compile_features(benchmark-blas PRIVATE c_std_11 c_restrict)
-target_compile_options(benchmark-blas PRIVATE -Wall -pedantic -march=native)
-set(BENCHMARK "blas")
-configure_file(job.in job-${BENCHMARK})
-
-add_executable(benchmark-blocked dgemm-blocked.cpp)
 add_library(bench-blocked OBJECT benchmark.cpp)
 target_compile_definitions(bench-blocked PRIVATE -DBLOCKED)
 target_compile_features(bench-blocked PRIVATE cxx_std_11)
 target_link_libraries(bench-blocked PRIVATE cblas)
-target_link_libraries(benchmark-blocked PRIVATE bench-blocked cblas)
-target_compile_features(benchmark-blocked PRIVATE c_std_11 c_restrict)
-target_compile_options(benchmark-blocked PRIVATE -Wall -pedantic -march=native)
-set(BENCHMARK "blocked")
-configure_file(job.in job-${BENCHMARK})
+
+set(OPTIMIZATION_LEVELS O0 O1 O2 O3)
+
+foreach (OPTIMIZATION_LEVEL IN LISTS OPTIMIZATION_LEVELS)
+    set(OPTIMIZATION_FLAG "-${OPTIMIZATION_LEVEL}")
+
+    set(BASIC_TARGET "benchmark-basic-${OPTIMIZATION_LEVEL}")
+    add_executable(${BASIC_TARGET} dgemm-basic.cpp)
+    target_link_libraries(${BASIC_TARGET} PRIVATE benchmark cblas)
+    target_compile_features(${BASIC_TARGET} PRIVATE cxx_std_11)
+    target_compile_options(${BASIC_TARGET} PRIVATE
+            ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
+    set(BENCHMARK "basic-${OPTIMIZATION_LEVEL}")
+    configure_file(job.in job-${BENCHMARK} @ONLY)
+
+    set(BLAS_TARGET "benchmark-blas-${OPTIMIZATION_LEVEL}")
+    add_executable(${BLAS_TARGET} dgemm-blas.cpp)
+    target_link_libraries(${BLAS_TARGET} PRIVATE benchmark cblas)
+    target_compile_features(${BLAS_TARGET} PRIVATE cxx_std_11)
+    target_compile_options(${BLAS_TARGET} PRIVATE
+            ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
+    set(BENCHMARK "blas-${OPTIMIZATION_LEVEL}")
+    configure_file(job.in job-${BENCHMARK} @ONLY)
+
+    set(BLOCKED_TARGET "benchmark-blocked-${OPTIMIZATION_LEVEL}")
+    add_executable(${BLOCKED_TARGET} dgemm-blocked.cpp)
+    target_link_libraries(${BLOCKED_TARGET} PRIVATE bench-blocked cblas)
+    target_compile_features(${BLOCKED_TARGET} PRIVATE cxx_std_11)
+    target_compile_options(${BLOCKED_TARGET} PRIVATE
+            ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
+    set(BENCHMARK "blocked-${OPTIMIZATION_LEVEL}")
+    configure_file(job.in job-${BENCHMARK} @ONLY)
+endforeach ()

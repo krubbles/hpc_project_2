@@ -20,6 +20,28 @@ After downloading, cd into the main source directly, then:
 > mkdir build  
 > cd build  
 > cmake ../  
+> cmake --build . --parallel
+
+The build produces each implementation at four compiler optimization levels,
+for a total of 12 executables:
+
+```text
+./benchmark-basic-O0
+./benchmark-basic-O1
+./benchmark-basic-O2
+./benchmark-basic-O3
+./benchmark-blas-O0
+./benchmark-blas-O1
+./benchmark-blas-O2
+./benchmark-blas-O3
+./benchmark-blocked-O0
+./benchmark-blocked-O1
+./benchmark-blocked-O2
+./benchmark-blocked-O3
+```
+
+Matching Slurm scripts named `job-basic-O0` through `job-blocked-O3` are
+generated in the build directory.
 
 When building on Perlmutter, make sure you are on a CPU node when doing the compilation. Compiling and running your code on the Perlmutter Login nodes is not recommended.  The simplest way to do this is
 grab an interactive CPU node by running the below command after logging into Perlmutter:  
