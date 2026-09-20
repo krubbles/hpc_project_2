@@ -10,9 +10,8 @@ OUTPUT_FILE = ROOT / "output.results.csv"
 
 # all impl / optimization level combinations
 programs = [
-    (implementation, optimization)
+    (implementation, "O3")
     for implementation in ("basic", "blas", "blocked")
-    for optimization in ("O0", "O1", "O2", "O3")
 ]
 
 rows = []
@@ -20,7 +19,13 @@ for implementation, optimization in programs:
     # run c++ benchmark program
     executable = BUILD_DIR / f"benchmark-{implementation}-{optimization}"
     print(f"Running {executable.name}")
-    result = subprocess.run([executable], text=True, capture_output=True, check=True)
+    result = subprocess.run(
+        [executable],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        check=True,
+    )
 
     if "Error:" in result.stdout:
         raise RuntimeError(f"{executable.name} produced an error")
@@ -31,18 +36,23 @@ for implementation, optimization in programs:
 
     for line in result.stdout.splitlines():
         # extract problem size, block size, time elapsed with regex
-        if match := re.search(r"N=(\d+)", line):
+        match = re.search(r"N=(\d+)", line)
+        if match:
             problem_number += 1
             n = int(match.group(1))
-        elif match := re.fullmatch(r"B=(\d+)", line):
-            block_size = int(match.group(1))
-        elif match := re.fullmatch(r"T=([0-9.eE+-]+)s", line):
-            # time comes last so we add a row here.
-            # ignoring the first problem, because it is a warmup for DLL loading
-            if problem_number > 0:
-                rows.append(
-                    [implementation, optimization, n, block_size, float(match.group(1))]
-                )
+        else:
+            match = re.fullmatch(r"B=(\d+)", line)
+            if match:
+                block_size = int(match.group(1))
+            else:
+                match = re.fullmatch(r"T=([0-9.eE+-]+)s", line)
+                if match:
+                    # time comes last so we add a row here.
+                    # ignoring the first problem, because it is a warmup for DLL loading
+                    if problem_number > 0:
+                        rows.append(
+                            [implementation, optimization, n, block_size, float(match.group(1))]
+                        )
 
 # write output file
 with OUTPUT_FILE.open("w", newline="") as output:
