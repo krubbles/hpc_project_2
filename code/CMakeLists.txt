@@ -1,10 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(hw2 LANGUAGES C CXX)
 
-# Homebrew installs OpenBLAS as a keg-only package, which keeps cblas.h and
-# the library outside CMake's default search paths. Prefer it on macOS when
-# available, without changing discovery on Perlmutter or other Linux hosts.
-set(CBLAS_SEARCH_HINTS)
+# Make CBlas work on macOS
 if (APPLE)
     find_program(HOMEBREW_EXECUTABLE brew)
     if (HOMEBREW_EXECUTABLE)
@@ -16,47 +13,51 @@ if (APPLE)
                 ERROR_QUIET)
         if (OPENBLAS_PREFIX_RESULT EQUAL 0)
             list(PREPEND CMAKE_PREFIX_PATH "${OPENBLAS_PREFIX}")
-            list(APPEND CBLAS_SEARCH_HINTS "${OPENBLAS_PREFIX}/include")
             set(BLA_VENDOR OpenBLAS)
             if (EXISTS "${OPENBLAS_PREFIX}/include/cblas.h")
                 set(CBLAS_INCLUDE_DIR "${OPENBLAS_PREFIX}/include")
             endif ()
         endif ()
     endif ()
-endif ()
 
-find_package(BLAS REQUIRED)
+    find_package(BLAS REQUIRED)
 
-find_path(CBLAS_INCLUDE_DIR
-        NAMES cblas.h
-        HINTS ${CBLAS_SEARCH_HINTS} ${BLAS_INCLUDE_DIRS}
-        PATH_SUFFIXES include include/openblas)
-
-# Accelerate supplies CBLAS on macOS, but its header may only be visible
-# inside the active SDK rather than through the default include paths.
-if (APPLE AND NOT CBLAS_INCLUDE_DIR)
-    execute_process(
-            COMMAND xcrun --show-sdk-path
-            RESULT_VARIABLE MACOS_SDK_RESULT
-            OUTPUT_VARIABLE MACOS_SDK_PATH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET)
-    if (MACOS_SDK_RESULT EQUAL 0)
+    if (NOT CBLAS_INCLUDE_DIR)
         find_path(CBLAS_INCLUDE_DIR
                 NAMES cblas.h
-                HINTS "${MACOS_SDK_PATH}/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers"
-                NO_DEFAULT_PATH)
+                HINTS ${BLAS_INCLUDE_DIRS}
+                PATH_SUFFIXES include include/openblas)
     endif ()
-endif ()
 
-if (NOT CBLAS_INCLUDE_DIR)
-    message(FATAL_ERROR
-            "BLAS was found, but cblas.h was not. Install a CBLAS implementation such as OpenBLAS.")
-endif ()
+    # Accelerate's CBLAS header may only be visible inside the active SDK.
+    if (NOT CBLAS_INCLUDE_DIR)
+        execute_process(
+                COMMAND xcrun --show-sdk-path
+                RESULT_VARIABLE MACOS_SDK_RESULT
+                OUTPUT_VARIABLE MACOS_SDK_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+        if (MACOS_SDK_RESULT EQUAL 0)
+            find_path(CBLAS_INCLUDE_DIR
+                    NAMES cblas.h
+                    HINTS "${MACOS_SDK_PATH}/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/Headers"
+                    NO_DEFAULT_PATH)
+        endif ()
+    endif ()
 
-add_library(cblas INTERFACE)
-target_include_directories(cblas INTERFACE "${CBLAS_INCLUDE_DIR}")
-target_link_libraries(cblas INTERFACE ${BLAS_LIBRARIES})
+    if (NOT CBLAS_INCLUDE_DIR)
+        message(FATAL_ERROR
+                "BLAS was found, but cblas.h was not. Install OpenBLAS with Homebrew.")
+    endif ()
+
+    add_library(cblas INTERFACE)
+    target_include_directories(cblas INTERFACE "${CBLAS_INCLUDE_DIR}")
+    target_link_libraries(cblas INTERFACE ${BLAS_LIBRARIES})
+    set(BLAS_LINK_LIBRARIES cblas)
+else ()
+    find_package(BLAS REQUIRED)
+    set(BLAS_LINK_LIBRARIES ${BLAS_LIBRARIES})
+endif ()
 
 # We require the GNU compiler for this assignment.
 if (NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
@@ -70,12 +71,16 @@ endif ()
 # Common library target for benchmarking.
 add_library(benchmark OBJECT benchmark.cpp)
 target_compile_features(benchmark PRIVATE cxx_std_11)
-target_link_libraries(benchmark PRIVATE cblas)
+if (APPLE)
+    target_link_libraries(benchmark PRIVATE cblas)
+endif ()
 
 add_library(bench-blocked OBJECT benchmark.cpp)
 target_compile_definitions(bench-blocked PRIVATE -DBLOCKED)
 target_compile_features(bench-blocked PRIVATE cxx_std_11)
-target_link_libraries(bench-blocked PRIVATE cblas)
+if (APPLE)
+    target_link_libraries(bench-blocked PRIVATE cblas)
+endif ()
 
 set(OPTIMIZATION_LEVELS O0 O1 O2 O3)
 
@@ -84,7 +89,7 @@ foreach (OPTIMIZATION_LEVEL IN LISTS OPTIMIZATION_LEVELS)
 
     set(BASIC_TARGET "benchmark-basic-${OPTIMIZATION_LEVEL}")
     add_executable(${BASIC_TARGET} dgemm-basic.cpp)
-    target_link_libraries(${BASIC_TARGET} PRIVATE benchmark cblas)
+    target_link_libraries(${BASIC_TARGET} PRIVATE benchmark ${BLAS_LINK_LIBRARIES})
     target_compile_features(${BASIC_TARGET} PRIVATE cxx_std_11)
     target_compile_options(${BASIC_TARGET} PRIVATE
             ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
@@ -93,7 +98,7 @@ foreach (OPTIMIZATION_LEVEL IN LISTS OPTIMIZATION_LEVELS)
 
     set(BLAS_TARGET "benchmark-blas-${OPTIMIZATION_LEVEL}")
     add_executable(${BLAS_TARGET} dgemm-blas.cpp)
-    target_link_libraries(${BLAS_TARGET} PRIVATE benchmark cblas)
+    target_link_libraries(${BLAS_TARGET} PRIVATE benchmark ${BLAS_LINK_LIBRARIES})
     target_compile_features(${BLAS_TARGET} PRIVATE cxx_std_11)
     target_compile_options(${BLAS_TARGET} PRIVATE
             ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
@@ -102,7 +107,7 @@ foreach (OPTIMIZATION_LEVEL IN LISTS OPTIMIZATION_LEVELS)
 
     set(BLOCKED_TARGET "benchmark-blocked-${OPTIMIZATION_LEVEL}")
     add_executable(${BLOCKED_TARGET} dgemm-blocked.cpp)
-    target_link_libraries(${BLOCKED_TARGET} PRIVATE bench-blocked cblas)
+    target_link_libraries(${BLOCKED_TARGET} PRIVATE bench-blocked ${BLAS_LINK_LIBRARIES})
     target_compile_features(${BLOCKED_TARGET} PRIVATE cxx_std_11)
     target_compile_options(${BLOCKED_TARGET} PRIVATE
             ${OPTIMIZATION_FLAG} -Wall -pedantic -march=native)
