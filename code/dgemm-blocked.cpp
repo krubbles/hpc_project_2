@@ -44,14 +44,16 @@ void square_dgemm_blocked(int n, int block_size, double* A, double* B, double* C
                 // multiply the blocks
                 for (int cRowIndex = 0; cRowIndex < block_size; ++cRowIndex)
                 {
-                    for (int cColIndex = 0; cColIndex < block_size; ++cColIndex)
+                    for (int vectorIndex = 0; vectorIndex < block_size; ++vectorIndex)
                     {
-                        int cIndex = cRowIndex * block_size + cColIndex;
-                        for (int vectorIndex = 0; vectorIndex < block_size; ++vectorIndex)
+                        int aIndex = cRowIndex * block_size + vectorIndex;
+                        double a = aBlock[aIndex];
+
+                        for (int cColIndex = 0; cColIndex < block_size; ++cColIndex)
                         {
-                            int aIndex = cRowIndex * block_size + vectorIndex;
+                            int cIndex = cRowIndex * block_size + cColIndex;
                             int bIndex = vectorIndex * block_size + cColIndex;
-                            cBlock[cIndex] += aBlock[aIndex] * bBlock[bIndex];
+                            cBlock[cIndex] += a * bBlock[bIndex];
                         }
                     }
                 }
