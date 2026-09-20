@@ -38,7 +38,7 @@ void fill(double* p, int n) {
 bool check_accuracy(double *A, double *Anot, int nvalues)
 {
   double eps = 1e-5;
-  for (size_t i = 0; i < nvalues; i++) 
+  for (size_t i = 0; i < nvalues; i++)
   {
     if (fabsf(A[i] - Anot[i]) > eps) {
        return false;
@@ -49,7 +49,7 @@ bool check_accuracy(double *A, double *Anot, int nvalues)
 
 
 /* The benchmarking program */
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
     std::cout << "Description:\t" << dgemm_desc << std::endl << std::endl;
 
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 
     // 9/14/2024: run the 1st problem size twice: the first execution
     // "conditions" BLAS (eg, dll loading), so ignore the runtime from
-    // the first problem size, and start using the timings from the 
+    // the first problem size, and start using the timings from the
     // second problem size and beyond.
     std::vector<int> test_sizes{64, 64, 128, 256, 512, 1024, 2048};
     std::vector<int> block_sizes{2, 16, 32, 64};
@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     int n_problems = test_sizes.size();
 
     /* For each test size */
-    for (int n : test_sizes) 
+    for (int n : test_sizes)
     {
         printf("Working on problem size N=%d \n", n);
 
@@ -93,16 +93,23 @@ int main(int argc, char** argv)
            memcpy((void *)Acopy, (const void *)A, sizeof(double)*n*n);
            memcpy((void *)Bcopy, (const void *)B, sizeof(double)*n*n);
            memcpy((void *)Ccopy, (const void *)C, sizeof(double)*n*n);
-
-           // insert timer code here
+           const std::chrono::time_point<std::chrono::high_resolution_clock> start =
+               std::chrono::high_resolution_clock::now();
 
 #ifdef BLOCKED
-           square_dgemm_blocked(n, b, A, B, C); 
+           square_dgemm_blocked(n, b, A, B, C);
 #else
-           square_dgemm(n, A, B, C); 
+           square_dgemm(n, A, B, C);
 #endif
 
-           // insert timer code here
+           const std::chrono::time_point<std::chrono::high_resolution_clock> stop = std::chrono::high_resolution_clock::now();
+           const std::chrono::duration<double> elapsed_duration = stop - start;
+           const double elapsed_seconds = elapsed_duration.count();
+
+#ifdef BLOCKED
+           std::cout << "B=" << b << "\n";
+#endif
+           std::cout << "T=" << std::setprecision(9) << elapsed_seconds << "s\n";
 
            reference_dgemm(n, 1.0 , Acopy, Bcopy, Ccopy);
 
