@@ -1,0 +1,40 @@
+\section{Results}
+\label{sec:results}
+
+\textit{TODO: Briefly introduce the experiments and comparisons presented in
+this section. Report performance in MFLOP/s, with problem size on the horizontal
+axis for all charts.}
+
+\subsection{Computational Platform and Software Environment}
+
+\textit{TODO: Describe the Perlmutter CPU hardware, cache and memory
+characteristics, operating environment, compiler version, and compilation
+flags.}
+
+\subsection{Test Methodology}
+\label{sec:methodology}
+
+\textit{TODO: Explain what was measured and how. Include the timing boundaries,
+correctness check, problem sizes $N=\{128,256,512,1024,2048\}$, block sizes
+$B=\{2,16,32,64\}$, FLOP count, MFLOP/s calculation, and treatment of the first
+CBLAS warm-up measurement.}
+
+\subsection{Comparison of Basic Matrix Multiplication and CBLAS}
+
+\textit{TODO: Add a chart comparing Basic MM and CBLAS across all problem
+sizes. Discuss changes in Basic MM performance as problem size grows, explain
+those changes using course concepts, and compare Basic MM with CBLAS.}
+
+\subsection{Blocked Matrix Multiplication with Copy Optimization and CBLAS}
+
+\textit{TODO: Add the five-variable chart containing CBLAS and the blocked
+implementation at $B=2$, $16$, $32$, and $64$. Discuss effects of problem size
+and block size, compare the blocked implementation with CBLAS, and relate
+observed behavior to relevant hardware characteristics.}
+
+\subsection{Overall Findings and Discussion}
+
+\textit{TODO: Compare the Basic and blocked-with-copy implementations. Explain
+where and why one outperforms the other, identify relevant hardware features,
+and discuss performance changes across the complete dataset and problem-size
+range.}
