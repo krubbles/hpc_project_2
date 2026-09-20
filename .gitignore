@@ -1,2 +1,9 @@
 .DS_Store
 
+# CMake build output
+build/
+code/CMakeCache.txt
+code/CMakeFiles/
+code/Makefile
+code/cmake_install.cmake
+code/job-*
